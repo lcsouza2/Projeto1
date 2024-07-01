@@ -2,116 +2,104 @@ import json
 import string
 import random
 
-def generate_code(json_file):
-    """
-    Gera um código aleatório com letras minúsculas, maiúsculas e números
-    Args:
-        json_file: arquivo json para ler os códigos já existentes no arquivo
-    """
+class GenerateCode:
+        
+    def generate_code(existing_codes):
+        """
+        Gera um código aleatório com letras minúsculas, maiúsculas e números
+        
+        Args:
+            existing_codes: lista dos códigos existentes
 
-    #Gera o código aleatório
-    code = ""
-    for j in range(6):
-        code += str(
-            random.choice(
-                [random.choice(string.ascii_letters),
-                 random.randint(0, 10)]))
+        Retorna: 
+            código diferente dos já existentes
+        """
+    
+        #Gera o código aleatório
+        while (True):
+            code = "".join(random.choice(string.ascii_letters + string.digits)for _ in range(6))
+            if code not in existing_codes:
+                return code
 
-    #Caso o codigo esteja no arquivo gera outro
-    existing_codes = []
-    for i in read_json(json_file):
-        existing_codes.append(i["ctrl_code"])
+    def generate_pwd(char_amount):
+        #Gera a senha 
+        pwd = "".join(random.choice(string.ascii_letters + string.ascii_punctuation, string.digits)for _ in range(char_amount))
+        return pwd
+        
+class JsonManagment:
+    def __init__(self, file):
+        self.file = file
 
-    while code in existing_codes:
-        for j in range(6):
-            code += str(
-                random.choice([
-                    random.choice(string.ascii_letters),
-                    random.randint(0, 10)
-                ]))
-    return code
-
-def generate_pwd(char_amount):
-    pwd = ""
-    for i in range(char_amount):
-        pwd += str(
-            random.choice([
-                random.choice(string.ascii_letters),
-                random.choice(string.punctuation),
-                random.randint(0, 10)
-            ]))
-    return pwd
-
-def read_json(file: str):
-    """
-    Lê um arquivo json e retorna seu conteúdo
-
-    Args:
-        Arquivo json a ser lido 
-    """
-    try:
-        with open(file, "r") as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
+    def read_json(self):
+        """
+        Lê um arquivo json e retorna seu conteúdo
+    
+        Args:
+            Arquivo json a ser lido 
+        """
+        try:
+            with open(self.file, "r") as f:
+                try:
+                    return json.load(f)
+                except json.JSONDecodeError:
+                    return []
+        except FileNotFoundError:
+            with open(self.file, "w"):
                 return []
-    except FileNotFoundError:
-        with open(file, "w"):
-            return []
+    
+    def add_data(self, data):
+        """
+        Escreve dados no json
 
-def write_json(
-    file: str,
-    method: str,
-    data: dict,
-):
-    """
-    Manipula um arquivo json dependendo do método
+        Args:
+            data: Dados a serem adicionados ao json
+        Retorna:
+            True se os dados forem adicionados
+        """
 
-    Args:
-        file: arquivo a ser manipulado
-        method: "add" (adicionar), "rmv" (remover), "alt" (alterar)
-        data: dados em formato dicionário para adicionar ou remover ou alterar
-    """
+        current_data = self.read_json()
+        current_data.append(data)
+        
+        with open(self.file, "w") as f:
+            json.dump(current_data, f, indent = 4, ensure_ascii=False)
 
-    try:
-        open(file, "r")
-    except FileNotFoundError:
-        raise FileNotFoundError("Arquivo não encontrado")
+    def remove_data(self, ctrl_code):
+        """
+        Remove dados do json
+        
+        Args:
+            ctrl_code: código de controle do item a ser removido
+        """
+        current_data = self.read_json()
 
-    match method:
-        case "add":
-            add_data = read_json(file)
-            add_data.append(data)
-            with open(file, "w") as f:
-                json.dump(add_data, f, ensure_ascii=False, indent=4)
-            return True
+        #Adiciona os itens a lista
+        new_data = [item for item in current_data if item.get("ctrl_code") != ctrl_code]
 
-        case "rmv":
-            found = False
-            rmv_data = read_json(file)
-            for i in read_json(file):
-                if i["ctrl_code"] == data["ctrl_code"]:
-                    found = True
-                    rmv_data.remove(i)
-                    break
-            with open(file, "w") as f:
-                json.dump(rmv_data, f, ensure_ascii=False, indent=4)
+        with open(self.file, "w") as f:
+            json.dump(new_data, f, indent=4, ensure_ascii=False)
 
-            return found
+    def alt_data(self, new_data):
+        """
+        Altera dados no json
 
-        case "alt":
-            found = False
-            alt_data = read_json(file)
+        Args:
+            new_data: dados alterados a serem adicionados
 
-            for i in read_json(file):
-                if i["ctrl_code"] == data["ctrl_code"]:
-                    found = True
-                    alt_data.remove(i)
-                    alt_data.append(data)
+        Retorna:
+            True se alterado
+            False se não
+        """
+        current_data = self.read_json()
+        
+        for i, item in enumerate(current_data):
+            #Pega o dicionário que contém o código de controle
+            if item.get("ctrl_code") == new_data.get("ctrl_code"):
+                current_data[i] = new_data
 
-            with open(file, "w") as f:
-                json.dump(alt_data, f, ensure_ascii=False, indent=4)
-            return found
-
-        case _:
-            raise ValueError("Método inválido")
+                #Reescreve os dados 
+                with open(self.file, "w") as f:
+                    json.dump(current_data, f, indent=4, ensure_ascii=False)
+                return True
+                
+            #LEvanta um erro caso o código não seja encontrado
+            raise ValueError("Código de controle não encontrado!")
